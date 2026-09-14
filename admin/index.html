@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KATHYŪḌ Editor</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,"Noto Sans Devanagari",sans-serif;background:#f4f5f2;color:#17332e}
+button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;border-radius:8px;padding:10px 14px}
+.wrap{min-height:100vh;display:flex}.side{width:245px;background:#0b4f46;color:#fff;padding:22px;position:fixed;inset:0 auto 0 0}.brand{font-size:24px;font-weight:700}.sub{font-size:11px;opacity:.7;margin:3px 0 25px}.nav button{width:100%;text-align:left;background:transparent;color:#dfeeea;margin:3px 0}.nav button:hover,.nav .active{background:#17675c}.main{margin-left:245px;width:calc(100% - 245px);padding:28px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.card{background:#fff;border:1px solid #dde4df;border-radius:14px;padding:20px;box-shadow:0 4px 20px #00000008}.login{max-width:430px;margin:10vh auto}.login h1{margin-top:0}.field{margin:12px 0}.field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}.field input,.field textarea,.field select{width:100%;border:1px solid #cbd6d0;border-radius:8px;padding:11px;background:#fff}.field textarea{min-height:220px;resize:vertical}.btn{background:#0b4f46;color:#fff}.btn2{background:#e8eeeb;color:#17332e}.danger{background:#b42318;color:#fff}.grid{display:grid;grid-template-columns:1fr 340px;gap:18px}.list{display:grid;gap:10px;margin-top:15px}.item{border:1px solid #dde4df;border-radius:10px;padding:13px;background:#fff;display:flex;justify-content:space-between;gap:12px;align-items:center}.muted{color:#6b7b75;font-size:13px}.tools{display:flex;gap:7px;flex-wrap:wrap}.hide{display:none!important}.editor{min-height:320px;border:1px solid #cbd6d0;border-radius:8px;padding:14px;background:#fff}.bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}.bar button{padding:7px 10px;background:#e8eeeb}.toast{position:fixed;right:20px;bottom:20px;background:#17332e;color:#fff;padding:12px 16px;border-radius:9px}.status{font-size:12px;padding:4px 8px;border-radius:20px;background:#e9eee9}.published{background:#d9f3df}.draft{background:#fff0c9}.unpublished{background:#eee}.small{font-size:12px}
+@media(max-width:800px){.side{position:static;width:100%;height:auto}.wrap{display:block}.main{margin:0;width:100%;padding:15px}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const SUPABASE_URL="https://bmvrryyrnjwsvcgstpgx.supabase.co";
+const SUPABASE_KEY="sb_publishable_DKkBIkCw4rwV3THJoDk8Yw_fYYe5Up6";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let user=null, articles=[], current=null;
+
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(t){let x=document.createElement("div");x.className="toast";x.textContent=t;document.body.appendChild(x);setTimeout(()=>x.remove(),2500)}
+async function init(){
+ const {data:{session}}=await sb.auth.getSession(); user=session?.user||null;
+ user?showApp():showLogin();
+}
+function showLogin(){app.innerHTML=`<div class="login card"><div class="brand">KATHYŪḌ</div><div class="sub">THE NEW PAHAD · EDITOR</div><h1>Editor Login</h1><div class="field"><label>Email</label><input id="email" type="email" value="editor@kathyud.in"></div><div class="field"><label>Password</label><input id="pass" type="password"></div><button class="btn" onclick="login()">Login</button><p class="muted">यह panel केवल अधिकृत editor के लिए है।</p></div>`}
+async function login(){
+ const {error}=await sb.auth.signInWithPassword({email:email.value,password:pass.value});
+ if(error)return toast(error.message); location.reload();
+}
+async function logout(){await sb.auth.signOut();location.reload()}
+function showApp(){
+ app.innerHTML=`<div class="wrap"><aside class="side"><div class="brand">KATHYŪḌ</div><div class="sub">THE NEW PAHAD · EDITOR</div>
+ <div class="nav"><button id="home" class="active" onclick="home()">Home</button><button onclick="newArticle()">＋ Add New</button><button onclick="loadList('all')">Search Articles</button><button onclick="loadList('priority')">Priority</button><button onclick="loadList('unpublished')">Unpublish</button><button onclick="loadList('deleted')">Deleted Articles</button></div>
+ <hr style="border-color:#ffffff22;margin:22px 0"><div class="small">EDITOR</div><div style="margin-top:8px;word-break:break-all">${esc(user.email)}</div><button class="nav" style="margin-top:15px;color:#fff;background:#ffffff18" onclick="logout()">Logout</button></aside>
+ <main class="main"><div class="top"><div><h1 id="heading" style="margin:0">Home</h1><div class="muted">Content Studio</div></div></div><div id="content"></div></main></div>`;
+ home();
+}
+function home(){heading.textContent="Home";content.innerHTML=`<div class="card" style="min-height:480px;display:grid;place-items:center;text-align:center"><div><div style="font-size:40px">KATHYŪḌ</div><p class="muted">Home selected. यहां से Add New या किसी section का content खोलें।</p></div></div>`}
+async function loadList(mode){
+ heading.textContent=mode==="priority"?"Priority":mode==="unpublished"?"Unpublish":mode==="deleted"?"Deleted Articles":"Search Articles";
+ let q=sb.from("articles").select("*").order("priority",{ascending:true}).order("created_at",{ascending:false});
+ if(mode==="unpublished")q=q.eq("status","unpublished");else if(mode==="deleted")q=q.eq("status","deleted");else if(mode==="priority")q=q.neq("status","deleted");else q=q.neq("status","deleted");
+ const {data,error}=await q;if(error)return toast(error.message);articles=data||[];
+ content.innerHTML=`<div class="card"><div class="tools"><input id="search" placeholder="Article search..." style="flex:1;min-width:200px;border:1px solid #cbd6d0;border-radius:8px;padding:10px" oninput="renderList()"><button class="btn" onclick="newArticle()">＋ Add New</button></div><div id="list" class="list"></div></div>`;renderList()
+}
+function renderList(){let s=(search?.value||"").toLowerCase();let a=articles.filter(x=>(x.title||"").toLowerCase().includes(s)||(x.category||"").toLowerCase().includes(s));list.innerHTML=a.map(x=>`<div class="item"><div><b>${esc(x.title)}</b><div class="muted">${esc(x.category)} · Priority ${x.priority} · <span class="status ${x.status}">${esc(x.status)}</span></div></div><div class="tools"><button class="btn2" onclick="editArticle('${x.id}')">Edit</button><button class="danger" onclick="deleteArticle('${x.id}')">Delete</button></div></div>`).join("")||`<p class="muted">कोई article नहीं मिला।</p>`}
+function newArticle(){current=null;showEditor({title:"",slug:"",body_html:"",category:"आज की 10",priority:10,template:"standard",status:"draft",image_url:"",video_url:""})}
+async function editArticle(id){let {data,error}=await sb.from("articles").select("*").eq("id",id).single();if(error)return toast(error.message);current=data;showEditor(data)}
+function showEditor(a){
+ heading.textContent=current?"Edit Article":"Add New Article";
+ content.innerHTML=`<div class="grid"><div class="card"><div class="field"><label>Headline</label><input id="title" value="${esc(a.title)}"></div><div class="field"><label>Slug</label><input id="slug" value="${esc(a.slug)}" placeholder="english-slug"></div>
+ <div class="bar"><button onclick="cmd('bold')"><b>B</b></button><button onclick="cmd('italic')"><i>I</i></button><button onclick="cmd('formatBlock','H2')">H2</button><button onclick="cmd('formatBlock','P')">P</button><button onclick="insertInfo()">Info Box</button><button onclick="insertMedia()">Image / Video</button></div>
+ <div id="body" class="editor" contenteditable="true">${a.body_html||""}</div></div>
+ <div class="card"><div class="field"><label>Category</label><select id="category">${["आज की 10","योजनाएं","किसान","13 जिले","वीडियो","अन्य"].map(x=>`<option ${a.category===x?"selected":""}>${x}</option>`).join("")}</select></div>
+ <div class="field"><label>Priority (1 सबसे ऊपर)</label><input id="priority" type="number" min="1" max="10" value="${a.priority||10}"></div>
+ <div class="field"><label>Template / Size</label><select id="template">${["hero","large","standard","compact","box","list"].map(x=>`<option ${a.template===x?"selected":""}>${x}</option>`).join("")}</select></div>
+ <div class="field"><label>Status</label><select id="status"><option value="draft">Draft</option><option value="published">Published</option><option value="unpublished">Unpublished</option><option value="deleted">Deleted</option></select></div>
+ <div class="field"><label>Image URL</label><input id="image" value="${esc(a.image_url||"")}"></div><div class="field"><label>Video URL</label><input id="video" value="${esc(a.video_url||"")}"></div>
+ <div class="tools"><button class="btn" onclick="saveArticle()">Save</button><button class="btn2" onclick="loadList('all')">Cancel</button>${current?`<button class="danger" onclick="deleteArticle('${current.id}')">Delete</button>`:""}</div></div></div>`;
+ status.value=a.status||"draft";
+}
+function cmd(c,v=null){document.execCommand(c,false,v);body.focus()}
+function insertInfo(){cmd("insertHTML",`<div style="border-left:4px solid #d99a3c;background:#fff7e8;padding:12px;margin:12px 0"><b>महत्वपूर्ण:</b> यहां जानकारी लिखें।</div>`)}
+function insertMedia(){let u=prompt("Image URL डालें:");if(u)cmd("insertHTML",`<p><img src="${esc(u)}" alt="" style="max-width:100%;border-radius:10px"></p>`)}
+function slugify(s){return s.toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||("article-"+Date.now())}
+async function saveArticle(){
+ let t=title.value.trim();if(!t)return toast("Headline जरूरी है");
+ let payload={title:t,slug:(slug.value.trim()||slugify(t)),body_html:body.innerHTML,category:category.value,priority:Math.max(1,Math.min(10,Number(priority.value)||10)),template:template.value,status:status.value,image_url:image.value.trim()||null,video_url:video.value.trim()||null};
+ if(current){let {error}=await sb.from("articles").update(payload).eq("id",current.id);if(error)return toast(error.message)}
+ else {payload.created_by=user.id;let {error}=await sb.from("articles").insert(payload);if(error)return toast(error.message)}
+ toast("Article saved");loadList("all")
+}
+async function deleteArticle(id){if(!confirm("Article को Deleted में भेजें?"))return;let {error}=await sb.from("articles").update({status:"deleted"}).eq("id",id);if(error)return toast(error.message);toast("Deleted");loadList("all")}
+init();
+</script>
+</body>
+</html>
