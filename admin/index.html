@@ -61,7 +61,7 @@ function showEditor(a){
  <div class="field"><label>Status</label><select id="status"><option value="draft">Draft</option><option value="published">Published</option><option value="unpublished">Unpublished</option><option value="deleted">Deleted</option></select></div>
  <div class="field"><label>Image URL</label><input id="image" value="${esc(a.image_url||"")}"></div><div class="field"><label>Video URL</label><input id="video" value="${esc(a.video_url||"")}"></div>
  <div class="tools"><button class="btn" onclick="saveArticle()">Save</button><button class="btn2" onclick="loadList('all')">Cancel</button>${current?`<button class="danger" onclick="deleteArticle('${current.id}')">Delete</button>`:""}</div></div></div>`;
- status.value=a.status||"draft";
+ document.getElementById("status").value=a.status||"draft";
 }
 function cmd(c,v=null){document.execCommand(c,false,v);body.focus()}
 function insertInfo(){cmd("insertHTML",`<div style="border-left:4px solid #d99a3c;background:#fff7e8;padding:12px;margin:12px 0"><b>महत्वपूर्ण:</b> यहां जानकारी लिखें।</div>`)}
@@ -69,7 +69,7 @@ function insertMedia(){let u=prompt("Image URL डालें:");if(u)cmd("inse
 function slugify(s){return s.toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||("article-"+Date.now())}
 async function saveArticle(){
  let t=title.value.trim();if(!t)return toast("Headline जरूरी है");
- let payload={title:t,slug:(slug.value.trim()||slugify(t)),body_html:body.innerHTML,category:category.value,priority:Math.max(1,Math.min(10,Number(priority.value)||10)),template:template.value,status:status.value,image_url:image.value.trim()||null,video_url:video.value.trim()||null};
+ let payload={title:t,slug:(slug.value.trim()||slugify(t)),body_html:body.innerHTML,category:category.value,priority:Math.max(1,Math.min(10,Number(priority.value)||10)),template:template.value,status:document.getElementById("status").value,image_url:image.value.trim()||null,video_url:video.value.trim()||null};
  if(current){let {error}=await sb.from("articles").update(payload).eq("id",current.id);if(error)return toast(error.message)}
  else {payload.created_by=user.id;let {error}=await sb.from("articles").insert(payload);if(error)return toast(error.message)}
  toast("Article saved");loadList("all")
